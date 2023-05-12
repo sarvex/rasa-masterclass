@@ -25,6 +25,6 @@ class ActionFacilitySearch(Action):
 
         facility = tracker.get_slot("facility_type")
         address = "300 Hyde St, San Francisco"
-        dispatcher.utter_message("Here is the address of the {}:{}".format(facility, address))
+        dispatcher.utter_message(f"Here is the address of the {facility}:{address}")
 
         return [SlotSet("address", address)]

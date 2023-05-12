@@ -75,17 +75,18 @@ def _find_facilities(location: Text, resource: Text) -> List[Dict]:
         full_path = _create_path(ENDPOINTS["base"], resource,
                                  ENDPOINTS[resource]["city_query"],
                                  location.upper())
-    #print("Full path:")
-    #print(full_path)
-    results = requests.get(full_path).json()
-    return results
+    return requests.get(full_path).json()
 
 
-def _resolve_name(facility_types, resource) ->Text:
-    for key, value in facility_types.items():
-        if value.get("resource") == resource:
-            return value.get("name")
-    return ""
+def _resolve_name(facility_types, resource) -> Text:
+    return next(
+        (
+            value.get("name")
+            for key, value in facility_types.items()
+            if value.get("resource") == resource
+        ),
+        "",
+    )
 
 
 class FindFacilityTypes(Action):
@@ -109,8 +110,11 @@ class FindFacilityTypes(Action):
                 "resource") + "\"}"
 
             buttons.append(
-                {"title": "{}".format(facility_type.get("name").title()),
-                 "payload": payload})
+                {
+                    "title": f'{facility_type.get("name").title()}',
+                    "payload": payload,
+                }
+            )
 
         # TODO: update rasa core version for configurable `button_type`
         dispatcher.utter_button_template("utter_greet", buttons, tracker)
@@ -136,24 +140,14 @@ class FindHealthCareAddress(Action):
         full_path = _create_path(ENDPOINTS["base"], facility_type,
                                  ENDPOINTS[facility_type]["id_query"],
                                  healthcare_id)
-        results = requests.get(full_path).json()
-        if results:
+        if results := requests.get(full_path).json():
             selected = results[0]
             if facility_type == FACILITY_TYPES["hospital"]["resource"]:
-                address = "{}, {}, {} {}".format(selected["address"].title(),
-                                                 selected["city"].title(),
-                                                 selected["state"].upper(),
-                                                 selected["zip_code"].title())
+                address = f'{selected["address"].title()}, {selected["city"].title()}, {selected["state"].upper()} {selected["zip_code"].title()}'
             elif facility_type == FACILITY_TYPES["nursing_home"]["resource"]:
-                address = "{}, {}, {} {}".format(selected["provider_address"].title(),
-                                                 selected["provider_city"].title(),
-                                                 selected["provider_state"].upper(),
-                                                 selected["provider_zip_code"].title())
+                address = f'{selected["provider_address"].title()}, {selected["provider_city"].title()}, {selected["provider_state"].upper()} {selected["provider_zip_code"].title()}'
             else:
-                address = "{}, {}, {} {}".format(selected["address"].title(),
-                                                 selected["city"].title(),
-                                                 selected["state"].upper(),
-                                                 selected["zip"].title())
+                address = f'{selected["address"].title()}, {selected["city"].title()}, {selected["state"].upper()} {selected["zip"].title()}'
 
             return [SlotSet("facility_address", address)]
         else:
@@ -203,8 +197,8 @@ class FacilityForm(FormAction):
         button_name = _resolve_name(FACILITY_TYPES, facility_type)
         if len(results) == 0:
             dispatcher.utter_message(
-                "Sorry, we could not find a {} in {}.".format(button_name,
-                                                              location.title()))
+                f"Sorry, we could not find a {button_name} in {location.title()}."
+            )
             return []
 
         buttons = []
@@ -221,16 +215,14 @@ class FacilityForm(FormAction):
                 name = r["provider_name"]
 
             payload = "/inform{\"facility_id\":\"" + facility_id + "\"}"
-            buttons.append(
-                {"title": "{}".format(name.title()), "payload": payload})
+            buttons.append({"title": f"{name.title()}", "payload": payload})
 
         if len(buttons) == 1:
-            message = "Here is a {} near you:".format(button_name)
+            message = f"Here is a {button_name} near you:"
         else:
             if button_name == "home health agency":
                 button_name = "home health agencie"
-            message = "Here are {} {}s near you:".format(len(buttons),
-                                                         button_name)
+            message = f"Here are {len(buttons)} {button_name}s near you:"
 
         # TODO: update rasa core version for configurable `button_type`
         dispatcher.utter_button_message(message, buttons)
